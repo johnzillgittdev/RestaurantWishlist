@@ -1,0 +1,432 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="RestaurantWishlist.Views.MainPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:converters="clr-namespace:RestaurantWishlist.Converters"
+    xmlns:helpers="clr-namespace:RestaurantWishlist.Helpers"
+    xmlns:vm="clr-namespace:RestaurantWishlist.ViewModels"
+    Shell.NavBarIsVisible="False"
+    BackgroundColor="{StaticResource AppBackground}">
+
+    <ContentPage.Resources>
+        <converters:CuisinesListToStringConverter x:Key="CuisinesConverter"/>
+        <converters:CostToRangeStringConverter    x:Key="CostConverter"/>
+
+        <!-- Shared chip DataTemplates -->
+        <DataTemplate x:Key="CuisineChipTemplate" x:DataType="helpers:CuisineOption">
+            <Border
+                Margin="0,0,6,6"
+                Padding="10,5"
+                StrokeShape="RoundRectangle 16"
+                Stroke="Transparent"
+                BackgroundColor="{StaticResource AppChip}">
+                <Border.Triggers>
+                    <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                        <Setter Property="BackgroundColor" Value="{StaticResource Secondary}"/>
+                    </DataTrigger>
+                </Border.Triggers>
+                <Label Text="{Binding DisplayName}" FontSize="13" TextColor="{StaticResource AppChipText}">
+                    <Label.Triggers>
+                        <DataTrigger TargetType="Label" Binding="{Binding IsSelected}" Value="True">
+                            <Setter Property="TextColor" Value="{StaticResource AppTextPrimary}"/>
+                        </DataTrigger>
+                    </Label.Triggers>
+                </Label>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ToggleCommand}"/>
+                </Border.GestureRecognizers>
+            </Border>
+        </DataTemplate>
+
+        <DataTemplate x:Key="CostChipTemplate" x:DataType="helpers:CostOption">
+            <Border
+                Margin="0,0,6,6"
+                Padding="10,5"
+                StrokeShape="RoundRectangle 16"
+                Stroke="Transparent"
+                BackgroundColor="{StaticResource AppChip}">
+                <Border.Triggers>
+                    <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                        <Setter Property="BackgroundColor" Value="{StaticResource Secondary}"/>
+                    </DataTrigger>
+                </Border.Triggers>
+                <Label FontSize="13" TextColor="{StaticResource AppChipText}">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Text="{Binding DisplayName}" FontAttributes="Bold"/>
+                            <Span Text=" · "/>
+                            <Span Text="{Binding Range}"/>
+                        </FormattedString>
+                    </Label.FormattedText>
+                    <Label.Triggers>
+                        <DataTrigger TargetType="Label" Binding="{Binding IsSelected}" Value="True">
+                            <Setter Property="TextColor" Value="{StaticResource AppTextPrimary}"/>
+                        </DataTrigger>
+                    </Label.Triggers>
+                </Label>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ToggleCommand}"/>
+                </Border.GestureRecognizers>
+            </Border>
+        </DataTemplate>
+    </ContentPage.Resources>
+
+    <!-- Root grid: main content + overlays all stacked -->
+    <Grid>
+
+        <!-- ── Main content ──────────────────────────────────────────────── -->
+        <Grid x:Name="MainContent">
+
+            <!-- Empty state -->
+            <VerticalStackLayout
+                IsVisible="{Binding IsEmpty}"
+                HorizontalOptions="Center"
+                VerticalOptions="Center"
+                Spacing="8">
+                <Label Text="🍽️" FontSize="52" HorizontalOptions="Center"/>
+                <Label
+                    Text="No restaurants yet"
+                    FontSize="17" FontAttributes="Bold"
+                    TextColor="{StaticResource AppTextSecondary}"
+                    HorizontalOptions="Center"/>
+                <Label
+                    Text="Tap ＋ to add your first one"
+                    FontSize="14"
+                    TextColor="{StaticResource AppTextSecondary}"
+                    Opacity="0.7"
+                    HorizontalOptions="Center"/>
+            </VerticalStackLayout>
+
+            <!-- Spin wheel -->
+            <CollectionView
+                x:Name="WheelView"
+                ItemsSource="{Binding DisplayItems}"
+                SelectionMode="Single"
+                IsVisible="{Binding IsNotEmpty}"
+                Scrolled="OnWheelScrolled">
+                <CollectionView.ItemsLayout>
+                    <LinearItemsLayout
+                        Orientation="Vertical"
+                        SnapPointsType="MandatorySingle"
+                        SnapPointsAlignment="Center"/>
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="helpers:RestaurantDisplayItem">
+                        <Grid HeightRequest="100">
+
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroupList>
+                                    <VisualStateGroup x:Name="CommonStates">
+                                        <VisualState x:Name="Normal">
+                                            <VisualState.Setters>
+                                                <Setter Property="Opacity" Value="0.3"/>
+                                                <Setter Property="Scale"   Value="1.0"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Selected">
+                                            <VisualState.Setters>
+                                                <Setter Property="Opacity" Value="1.0"/>
+                                                <Setter Property="Scale"   Value="1.35"/>
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateGroupList>
+                            </VisualStateManager.VisualStateGroups>
+
+                            <!-- Edit button (left) -->
+                            <ImageButton
+                                Source="edit_icon.svg"
+                                WidthRequest="44" HeightRequest="44"
+                                Padding="8"
+                                BackgroundColor="Transparent"
+                                HorizontalOptions="Start"
+                                VerticalOptions="Center"
+                                IsVisible="{Binding IsSelected}"
+                                Clicked="OnEditButtonClicked"/>
+
+                            <!-- Restaurant info (center) -->
+                            <VerticalStackLayout
+                                HorizontalOptions="Center"
+                                VerticalOptions="Center"
+                                Spacing="2"
+                                InputTransparent="True">
+                                <Label
+                                    Text="{Binding Restaurant.Name}"
+                                    FontSize="20" FontAttributes="Bold"
+                                    TextColor="{StaticResource AppTextPrimary}"
+                                    HorizontalTextAlignment="Center"/>
+                                <Label
+                                    Text="{Binding Restaurant.Cuisines, Converter={StaticResource CuisinesConverter}}"
+                                    FontSize="13"
+                                    TextColor="{StaticResource AppTextSecondary}"
+                                    HorizontalTextAlignment="Center"/>
+                                <Label
+                                    Text="{Binding Restaurant.Cost}"
+                                    FontSize="11"
+                                    TextColor="{StaticResource AppTextSecondary}"
+                                    Opacity="0.65"
+                                    HorizontalTextAlignment="Center"/>
+                            </VerticalStackLayout>
+
+                            <!-- Delete button (right) -->
+                            <ImageButton
+                                Source="delete_icon.svg"
+                                WidthRequest="44" HeightRequest="44"
+                                Padding="8"
+                                BackgroundColor="Transparent"
+                                HorizontalOptions="End"
+                                VerticalOptions="Center"
+                                IsVisible="{Binding IsSelected}"
+                                Clicked="OnDeleteButtonClicked"/>
+
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+            <!-- Filter button (top-left) -->
+            <Grid
+                HorizontalOptions="Start"
+                VerticalOptions="Start"
+                Margin="4,4,0,0"
+                WidthRequest="56" HeightRequest="56">
+                <Image
+                    Source="filter_icon.svg"
+                    WidthRequest="44" HeightRequest="44"
+                    HorizontalOptions="Center" VerticalOptions="Center">
+                    <Image.Triggers>
+                        <DataTrigger TargetType="Image" Binding="{Binding IsFiltered}" Value="True">
+                            <Setter Property="Source" Value="filter_icon_active.svg"/>
+                        </DataTrigger>
+                    </Image.Triggers>
+                </Image>
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding OpenFilterSheetCommand}"/>
+                </Grid.GestureRecognizers>
+            </Grid>
+
+            <!-- Spin button (top-right) -->
+            <Grid
+                x:Name="SpinButton"
+                HorizontalOptions="End"
+                VerticalOptions="Start"
+                Margin="0,4,4,0"
+                WidthRequest="78" HeightRequest="78">
+                <Image Source="spin_wheel.svg" WidthRequest="78" HeightRequest="78"/>
+                <Label
+                    Text="SPIN"
+                    FontSize="9" FontAttributes="Bold"
+                    TextColor="{StaticResource AppTextPrimary}"
+                    HorizontalOptions="Center" VerticalOptions="Center"/>
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnSpinTapped"/>
+                </Grid.GestureRecognizers>
+            </Grid>
+
+            <!-- FAB add button (bottom-right) -->
+            <Border
+                WidthRequest="56" HeightRequest="56"
+                StrokeShape="Ellipse"
+                Stroke="Transparent"
+                HorizontalOptions="End"
+                VerticalOptions="End"
+                Margin="0,0,24,32">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="{StaticResource Primary}"   Offset="0"/>
+                        <GradientStop Color="{StaticResource Secondary}" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Border.Shadow>
+                    <Shadow Brush="#552D2040" Offset="0,3" Radius="8" Opacity="0.35"/>
+                </Border.Shadow>
+                <Label
+                    Text="＋"
+                    FontSize="28"
+                    TextColor="White"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center"
+                    Margin="0,0,0,2"/>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding OpenAddSheetCommand}"/>
+                </Border.GestureRecognizers>
+            </Border>
+
+        </Grid>
+
+        <!-- ── Sheet backdrop ────────────────────────────────────────────── -->
+        <Grid
+            x:Name="SheetBackdrop"
+            IsVisible="False"
+            BackgroundColor="#722D2040"
+            InputTransparent="False">
+            <Grid.GestureRecognizers>
+                <TapGestureRecognizer Tapped="OnBackdropTapped"/>
+            </Grid.GestureRecognizers>
+        </Grid>
+
+        <!-- ── Add sheet (slides up from bottom) ────────────────────────── -->
+        <Border
+            x:Name="AddSheet"
+            IsVisible="False"
+            StrokeShape="RoundRectangle 20,20,0,0"
+            Stroke="Transparent"
+            BackgroundColor="{StaticResource AppSurface}"
+            VerticalOptions="End"
+            TranslationY="800">
+            <Border.Shadow>
+                <Shadow Brush="#552D2040" Offset="0,-6" Radius="20" Opacity="0.2"/>
+            </Border.Shadow>
+            <ScrollView MaximumHeightRequest="580">
+                <VerticalStackLayout Padding="16,8,16,40" Spacing="0">
+
+                    <BoxView WidthRequest="40" HeightRequest="4" CornerRadius="2"
+                             Color="{StaticResource AppDivider}" HorizontalOptions="Center" Margin="0,0,0,16"/>
+                    <Label Text="Add Restaurant" FontSize="18" FontAttributes="Bold"
+                           TextColor="{StaticResource AppTextPrimary}" Margin="0,0,0,16"/>
+
+                    <!-- Name entry -->
+                    <Border StrokeShape="RoundRectangle 8" Stroke="{StaticResource AppDivider}"
+                            Padding="12,0" Margin="0,0,0,16">
+                        <Entry Placeholder="Restaurant name" Text="{Binding NewName}"
+                               TextColor="{StaticResource AppTextPrimary}"
+                               PlaceholderColor="{StaticResource AppTextSecondary}"
+                               BackgroundColor="Transparent" ReturnType="Done"/>
+                    </Border>
+
+                    <Label Text="Cost" FontSize="13" FontAttributes="Bold"
+                           TextColor="{StaticResource AppTextSecondary}" Margin="0,0,0,8"/>
+                    <FlexLayout
+                        Wrap="Wrap" Direction="Row" Margin="0,0,0,16"
+                        BindableLayout.ItemsSource="{Binding AddCostOptions}"
+                        BindableLayout.ItemTemplate="{StaticResource CostChipTemplate}"/>
+
+                    <Label Text="Cuisine" FontSize="13" FontAttributes="Bold"
+                           TextColor="{StaticResource AppTextSecondary}" Margin="0,0,0,8"/>
+                    <FlexLayout
+                        Wrap="Wrap" Direction="Row" Margin="0,0,0,20"
+                        BindableLayout.ItemsSource="{Binding AddCuisineOptions}"
+                        BindableLayout.ItemTemplate="{StaticResource CuisineChipTemplate}"/>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <Button Grid.Column="0" Text="Cancel"
+                                BackgroundColor="Transparent"
+                                TextColor="{StaticResource AppTextSecondary}"
+                                BorderColor="{StaticResource AppDivider}" BorderWidth="1"
+                                Clicked="OnCancelAddClicked"/>
+                        <Button Grid.Column="1" Text="Add"
+                                BackgroundColor="{StaticResource Primary}" TextColor="White"
+                                Command="{Binding SaveNewRestaurantCommand}"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </ScrollView>
+        </Border>
+
+        <!-- ── Edit sheet (slides up from bottom) ───────────────────────── -->
+        <Border
+            x:Name="EditSheet"
+            IsVisible="False"
+            StrokeShape="RoundRectangle 20,20,0,0"
+            Stroke="Transparent"
+            BackgroundColor="{StaticResource AppSurface}"
+            VerticalOptions="End"
+            TranslationY="800">
+            <Border.Shadow>
+                <Shadow Brush="#552D2040" Offset="0,-6" Radius="20" Opacity="0.2"/>
+            </Border.Shadow>
+            <ScrollView MaximumHeightRequest="580">
+                <VerticalStackLayout Padding="16,8,16,40" Spacing="0">
+
+                    <BoxView WidthRequest="40" HeightRequest="4" CornerRadius="2"
+                             Color="{StaticResource AppDivider}" HorizontalOptions="Center" Margin="0,0,0,16"/>
+                    <Label Text="Edit Restaurant" FontSize="18" FontAttributes="Bold"
+                           TextColor="{StaticResource AppTextPrimary}" Margin="0,0,0,16"/>
+
+                    <Border StrokeShape="RoundRectangle 8" Stroke="{StaticResource AppDivider}"
+                            Padding="12,0" Margin="0,0,0,16">
+                        <Entry Placeholder="Restaurant name" Text="{Binding EditName}"
+                               TextColor="{StaticResource AppTextPrimary}"
+                               PlaceholderColor="{StaticResource AppTextSecondary}"
+                               BackgroundColor="Transparent" ReturnType="Done"/>
+                    </Border>
+
+                    <Label Text="Cost" FontSize="13" FontAttributes="Bold"
+                           TextColor="{StaticResource AppTextSecondary}" Margin="0,0,0,8"/>
+                    <FlexLayout
+                        Wrap="Wrap" Direction="Row" Margin="0,0,0,16"
+                        BindableLayout.ItemsSource="{Binding EditCostOptions}"
+                        BindableLayout.ItemTemplate="{StaticResource CostChipTemplate}"/>
+
+                    <Label Text="Cuisine" FontSize="13" FontAttributes="Bold"
+                           TextColor="{StaticResource AppTextSecondary}" Margin="0,0,0,8"/>
+                    <FlexLayout
+                        Wrap="Wrap" Direction="Row" Margin="0,0,0,20"
+                        BindableLayout.ItemsSource="{Binding EditCuisineOptions}"
+                        BindableLayout.ItemTemplate="{StaticResource CuisineChipTemplate}"/>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <Button Grid.Column="0" Text="Cancel"
+                                BackgroundColor="Transparent"
+                                TextColor="{StaticResource AppTextSecondary}"
+                                BorderColor="{StaticResource AppDivider}" BorderWidth="1"
+                                Command="{Binding CloseEditSheetCommand}"/>
+                        <Button Grid.Column="1" Text="Save"
+                                BackgroundColor="{StaticResource Primary}" TextColor="White"
+                                Command="{Binding SaveEditCommand}"/>
+                    </Grid>
+                </VerticalStackLayout>
+            </ScrollView>
+        </Border>
+
+        <!-- ── Filter sheet (slides down from top) ──────────────────────── -->
+        <Border
+            x:Name="FilterSheet"
+            IsVisible="False"
+            StrokeShape="RoundRectangle 0,0,20,20"
+            Stroke="Transparent"
+            BackgroundColor="{StaticResource AppSurface}"
+            VerticalOptions="Start"
+            TranslationY="-800">
+            <Border.Shadow>
+                <Shadow Brush="#552D2040" Offset="0,6" Radius="20" Opacity="0.2"/>
+            </Border.Shadow>
+            <ScrollView MaximumHeightRequest="560">
+                <VerticalStackLayout Padding="16,44,16,8" Spacing="0">
+
+                    <Label Text="Filter" FontSize="18" FontAttributes="Bold"
+                           TextColor="{StaticResource AppTextPrimary}" Margin="0,0,0,16"/>
+
+                    <Label Text="Cuisine" FontSize="13" FontAttributes="Bold"
+                           TextColor="{StaticResource AppTextSecondary}" Margin="0,0,0,8"/>
+                    <FlexLayout
+                        Wrap="Wrap" Direction="Row" Margin="0,0,0,16"
+                        BindableLayout.ItemsSource="{Binding FilterCuisineOptions}"
+                        BindableLayout.ItemTemplate="{StaticResource CuisineChipTemplate}"/>
+
+                    <Label Text="Cost" FontSize="13" FontAttributes="Bold"
+                           TextColor="{StaticResource AppTextSecondary}" Margin="0,0,0,8"/>
+                    <FlexLayout
+                        Wrap="Wrap" Direction="Row" Margin="0,0,0,20"
+                        BindableLayout.ItemsSource="{Binding FilterCostOptions}"
+                        BindableLayout.ItemTemplate="{StaticResource CostChipTemplate}"/>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,0,0,8">
+                        <Button Grid.Column="0" Text="Clear"
+                                BackgroundColor="Transparent"
+                                TextColor="{StaticResource AppTextSecondary}"
+                                BorderColor="{StaticResource AppDivider}" BorderWidth="1"
+                                Command="{Binding ClearFilterCommand}"/>
+                        <Button Grid.Column="1" Text="Apply"
+                                BackgroundColor="{StaticResource Primary}" TextColor="White"
+                                Command="{Binding ApplyFilterCommand}"/>
+                    </Grid>
+
+                    <BoxView WidthRequest="40" HeightRequest="4" CornerRadius="2"
+                             Color="{StaticResource AppDivider}" HorizontalOptions="Center" Margin="0,8,0,0"/>
+                </VerticalStackLayout>
+            </ScrollView>
+        </Border>
+
+    </Grid>
+</ContentPage>

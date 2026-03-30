@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+
+    <!-- App palette -->
+    <Color x:Key="Primary">#9B89C4</Color>
+    <Color x:Key="PrimaryDark">#7B69A4</Color>
+    <Color x:Key="Secondary">#E8A87C</Color>
+    <Color x:Key="Tertiary">#C4A96B</Color>
+
+    <Color x:Key="AppBackground">#FAF7FF</Color>
+    <Color x:Key="AppSurface">#FFFFFF</Color>
+    <Color x:Key="AppTextPrimary">#2D2040</Color>
+    <Color x:Key="AppTextSecondary">#6B5F80</Color>
+    <Color x:Key="AppDivider">#D8D0E8</Color>
+    <Color x:Key="AppChip">#4A3F5C</Color>
+    <Color x:Key="AppChipText">#FAF7FF</Color>
+    <Color x:Key="AppDanger">#E07B7B</Color>
+    <Color x:Key="AppTeal">#87B5A2</Color>
+
+    <!-- Brushes -->
+    <SolidColorBrush x:Key="PrimaryBrush"    Color="{StaticResource Primary}"/>
+    <SolidColorBrush x:Key="SecondaryBrush"  Color="{StaticResource Secondary}"/>
+    <SolidColorBrush x:Key="TertiaryBrush"   Color="{StaticResource Tertiary}"/>
+
+    <!-- Kept for framework compatibility -->
+    <Color x:Key="White">White</Color>
+    <Color x:Key="Black">Black</Color>
+    <Color x:Key="OffBlack">#1f1f1f</Color>
+    <Color x:Key="Gray100">#E1E1E1</Color>
+    <Color x:Key="Gray200">#C8C8C8</Color>
+    <Color x:Key="Gray300">#ACACAC</Color>
+    <Color x:Key="Gray400">#919191</Color>
+    <Color x:Key="Gray500">#6E6E6E</Color>
+    <Color x:Key="Gray600">#404040</Color>
+    <Color x:Key="Gray900">#212121</Color>
+    <Color x:Key="Gray950">#141414</Color>
+    <SolidColorBrush x:Key="WhiteBrush" Color="{StaticResource White}"/>
+    <SolidColorBrush x:Key="BlackBrush" Color="{StaticResource Black}"/>
+
+</ResourceDictionary>
