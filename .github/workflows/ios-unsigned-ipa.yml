@@ -1,0 +1,67 @@
+name: iOS Unsigned IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ios-ipa:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-
+
+      - name: Cache MAUI workload
+        id: cache-maui
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.dotnet/workloads
+            /usr/local/share/dotnet/sdk-manifests
+            /usr/local/share/dotnet/packs
+          key: maui-workload-${{ runner.os }}-net10
+
+      - name: Install MAUI iOS workload
+        if: steps.cache-maui.outputs.cache-hit != 'true'
+        run: dotnet workload install maui-ios
+
+      - name: Restore dependencies
+        run: dotnet restore RestaurantWishlist/RestaurantWishlist.csproj -f net10.0-ios
+
+      - name: Publish iOS (unsigned, device)
+        run: |
+          dotnet publish RestaurantWishlist/RestaurantWishlist.csproj \
+            -f net10.0-ios \
+            -c Release \
+            /p:RuntimeIdentifier=ios-arm64 \
+            /p:CodesignKey="" \
+            /p:CodesignProvision="" \
+            /p:EnableCodeSigning=false \
+            /p:ArchiveOnBuild=false
+
+      - name: Package into IPA
+        run: |
+          PUBLISH_DIR="RestaurantWishlist/bin/Release/net10.0-ios/ios-arm64/publish"
+          mkdir -p "$PUBLISH_DIR/Payload"
+          cp -r "$PUBLISH_DIR/RestaurantWishlist.app" "$PUBLISH_DIR/Payload/"
+          cd "$PUBLISH_DIR"
+          zip -r RestaurantWishlist.ipa Payload/
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RestaurantWishlist-unsigned
+          path: RestaurantWishlist/bin/Release/net10.0-ios/ios-arm64/publish/RestaurantWishlist.ipa
+          retention-days: 14
