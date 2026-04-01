@@ -38,7 +38,7 @@ jobs:
         run: dotnet workload install maui-ios
 
       - name: Restore dependencies
-        run: dotnet restore RestaurantWishlist/RestaurantWishlist.csproj -f net10.0-ios
+        run: dotnet restore RestaurantWishlist/RestaurantWishlist.csproj
 
       - name: Publish iOS (unsigned, device)
         run: |
